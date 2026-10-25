@@ -1,6 +1,7 @@
 from hdmm import workload, templates, error, mechanism
 from census_workloads import SF1_Persons
 import numpy as np
+import pychor
 
 def example1():
     """ Optimize AllRange workload using PIdentity template and report the expected error """
@@ -20,8 +21,11 @@ def example2():
    
     M = mechanism.HDMM(W, np.zeros(256), 1.0)
     M.optimize(restarts=5)
-    xest = M.run()
-
+    alice = pychor.Party("alice")
+    bob = pychor.Party("bob")
+    parties = [bob, alice]
+    xest = M.run(parties)
+    
     print(np.sum((xest - 0)**2))
 
 def example3():

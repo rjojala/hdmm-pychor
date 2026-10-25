@@ -13,8 +13,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import pychor
 import numpy as np
 from hdmm import workload, templates
+from hdmm.matrix import EkteloMatrix
 
 def get_domain(W):
     if isinstance(W, workload.Kronecker):
@@ -69,12 +71,20 @@ class HDMM:
                     best_strat = pid
             self.strategy = best_strat.strategy()
            
-    def run(self):
+    def run(self, pychor_parties):
         A = self.strategy
         A1 = A.pinv()
+        A_array = A.dense_matrix()
+        A_parts = np.array_split(A_array, len(pychor_parties), axis=0)
         delta = self.strategy.sensitivity()
-        noise = self.prng.laplace(loc=0.0, scale=delta/self.eps, size=A.shape[0])
-        self.ans = A.dot(self.x) + noise
+        server = pychor.Party("server")
+        with pychor.SimulationBackend(parties=pychor_parties):
+            A_append = pychor.locally(lambda a: self.ans.append(a))
+            for index, A_part in A_parts:
+                noise = self.prng.laplace(loc=0.0, scale=delta/self.eps, size=A.shape[0])
+                noisy_dot = A_part.dot(self.x) @ pychor_parties[index]# + noise
+                noisy_dot.send(src=pychor_parties[index], dest=server)
+                A_append(noisy_dot)(noisy_dot.only(server))
         self.xest = A1.dot(self.ans)
         return self.xest 
  
