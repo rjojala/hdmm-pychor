@@ -88,7 +88,7 @@ class HDMM:
             noisy_dot.send(src=pychor_parties[index], dest=server)
             pychor.locally(lambda a: x_final.append(np.asarray(a)), noisy_dot.only(server))
         # Do the sum instead of ravel
-        self.ans = np.asarray(x_final).sum()
+        self.ans = np.asarray(x_final).sum(axis=0)
         self.xest = A1.dot(self.ans)
         return self.xest 
  
