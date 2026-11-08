@@ -24,7 +24,8 @@ def example2():
     alice = pychor.Party("alice")
     bob = pychor.Party("bob")
     parties = [bob, alice]
-    xest = M.run(parties)
+    with pychor.SimulationBackend(parties=parties):
+        xest = M.run(parties)
     
     print(np.sum((xest - 0)**2))
 

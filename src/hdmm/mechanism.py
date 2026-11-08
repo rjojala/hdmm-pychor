@@ -74,18 +74,21 @@ class HDMM:
     def run(self, pychor_parties):
         A = self.strategy
         A1 = A.pinv()
-        A_array = A.dense_matrix()
-        A_parts = np.array_split(A_array, len(pychor_parties), axis=0)
-        self.ans = []
+        # Make k copies of the data (self.x)
+        # We can do this because the data is 0, so the split will be a vectorized version of the dataset where the length of the splitted vector will be the same as x and it will all be 0 because the data is 0.
+        x_parts = [np.copy(self.x) for parties in pychor_parties]
+        x_final = []
         delta = self.strategy.sensitivity()
         server = pychor.Party("server")
-        with pychor.SimulationBackend(parties=pychor_parties):
-            for index, A_part in enumerate(A_parts):
-                noise = self.prng.laplace(loc=0.0, scale=delta/self.eps, size=A_part.shape[0])
-                noisy_dot = pychor_parties[index].constant(A_part.dot(self.x) + noise)
-                noisy_dot.send(src=pychor_parties[index], dest=server)
-                pychor.locally(lambda a: self.ans.append(np.asarray(a)), noisy_dot.only(server))
-        self.ans = np.asarray(self.ans).ravel()
+        # Move into examples 
+        for index, x_part in enumerate(x_parts):
+            noise = self.prng.laplace(loc=0.0, scale=delta/self.eps, size=A.shape[0])
+            # Don't use A_part, use the copies of x
+            noisy_dot = pychor_parties[index].constant(A.dot(x_part) + noise)
+            noisy_dot.send(src=pychor_parties[index], dest=server)
+            pychor.locally(lambda a: x_final.append(np.asarray(a)), noisy_dot.only(server))
+        # Do the sum instead of ravel
+        self.ans = np.asarray(x_final).sum()
         self.xest = A1.dot(self.ans)
         return self.xest 
  
