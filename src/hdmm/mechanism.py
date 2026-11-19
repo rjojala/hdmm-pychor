@@ -71,23 +71,40 @@ class HDMM:
                     best_strat = pid
             self.strategy = best_strat.strategy()
            
-    def run(self, pychor_parties):
+    def run(self, pychor_parties, x_parts):
         A = self.strategy
         A1 = A.pinv()
-        # Make k copies of the data (self.x)
-        # We can do this because the data is 0, so the split will be a vectorized version of the dataset where the length of the splitted vector will be the same as x and it will all be 0 because the data is 0.
-        x_parts = [np.copy(self.x) for parties in pychor_parties]
         x_final = []
+        GAMMA = 1000
+        THETA = 0.01
         delta = self.strategy.sensitivity()
+        #rho = (np.sqrt(np.log(1 / delta) + self.eps) - np.sqrt(np.log(1 / delta)))**2
+        # p from line 62 from base_config.py in distributed hdmm
+        P = 2**31 - 1
         server = pychor.Party("server")
-        # Move into examples 
+        num_clients = len(pychor_parties) + 1
+        # Possible problems:
+        # Not using discrete gaussian
+        # The noise scale from the paper != the noise in the repo (agent bellnew)
+        # Can't tell if p or rho
+        # Does N_z() represent variance or SD?
+        # Isn't noise now dependent on data?
+        # std_dev = (GAMMA * delta) / np.sqrt(2*(1-THETA)*num_clients*P)
+        # std_dev = GAMMA*delta**2/(num_clients/2)
+        std_dev = (GAMMA**2*delta**2)/(2*(1-THETA)*num_clients*P)
+        # std_dev = delta/self.eps
         for index, x_part in enumerate(x_parts):
-            noise = self.prng.laplace(loc=0.0, scale=delta/self.eps, size=A.shape[0])
-            # Don't use A_part, use the copies of x
-            noisy_dot = pychor_parties[index].constant(A.dot(x_part) + noise)
-            noisy_dot.send(src=pychor_parties[index], dest=server)
-            pychor.locally(lambda a: x_final.append(np.asarray(a)), noisy_dot.only(server))
-        # Do the sum instead of ravel
+            x_local = pychor_parties[index].constant(x_part)
+            noise = self.prng.normal(loc=0.0, scale=delta/(self.eps*std_dev), size=A.shape[0])
+            encoded = pychor_parties[index].constant(A.dot(x_part) + noise)
+            # meas_vec = pychor.locally(lambda data: A.dot(data), x_local)
+            # meas_vec_scaled = pychor.locally(lambda meas: (meas * GAMMA).astype(int), meas_vec)
+            # noisy_val = pychor.locally(lambda meas, scaled: scaled + (self.prng.normal(loc=0.0, scale=std_dev, size=len(meas)).astype(int)), meas_vec, meas_vec_scaled)
+            # print(noisy_val)
+            # encoded = pychor.locally(lambda val: val % P, noisy_val)
+
+            encoded.send(src=pychor_parties[index], dest=server)
+            pychor.locally(lambda a: x_final.append(np.asarray(a)), encoded.only(server))
         self.ans = np.asarray(x_final).sum(axis=0)
         self.xest = A1.dot(self.ans)
         return self.xest 

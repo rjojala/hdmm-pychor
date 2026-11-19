@@ -18,14 +18,18 @@ def example2():
     """ End-to-End algorithm for AllRange workload """
     print('Example 2')
     W = workload.AllRange(256)
+    x = np.zeros(256)
    
-    M = mechanism.HDMM(W, np.zeros(256), 1.0)
+    M = mechanism.HDMM(W, x, 1.0)
     M.optimize(restarts=5)
     alice = pychor.Party("alice")
     bob = pychor.Party("bob")
     parties = [bob, alice]
+    # Make k copies of the data (x)
+    # We can do this because the data is 0, so the split will be a vectorized version of the dataset where the length of the splitted vector will be the same as x and it will all be 0 because the data is 0.
+    x_parts = [np.copy(x) for party in parties]
     with pychor.SimulationBackend(parties=parties):
-        xest = M.run(parties)
+        xest = M.run(parties, x_parts)
     
     print(np.sum((xest - 0)**2))
 
