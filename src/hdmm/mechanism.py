@@ -95,13 +95,13 @@ class HDMM:
         # std_dev = delta/self.eps
         for index, x_part in enumerate(x_parts):
             x_local = pychor_parties[index].constant(x_part)
-            noise = self.prng.normal(loc=0.0, scale=delta/(self.eps*std_dev), size=A.shape[0])
-            encoded = pychor_parties[index].constant(A.dot(x_part) + noise)
-            # meas_vec = pychor.locally(lambda data: A.dot(data), x_local)
-            # meas_vec_scaled = pychor.locally(lambda meas: (meas * GAMMA).astype(int), meas_vec)
-            # noisy_val = pychor.locally(lambda meas, scaled: scaled + (self.prng.normal(loc=0.0, scale=std_dev, size=len(meas)).astype(int)), meas_vec, meas_vec_scaled)
+            # noise = self.prng.normal(loc=0.0, scale=delta/(self.eps*std_dev), size=A.shape[0])
+            # encoded = pychor_parties[index].constant(A.dot(x_part) + noise)
+            meas_vec = pychor.locally(lambda data: A.dot(data), x_local)
+            meas_vec_scaled = pychor.locally(lambda meas: (meas * GAMMA).astype(int), meas_vec)
+            noisy_val = pychor.locally(lambda meas, scaled: scaled + (self.prng.normal(loc=0.0, scale=std_dev, size=len(meas)).astype(int)), meas_vec, meas_vec_scaled)
             # print(noisy_val)
-            # encoded = pychor.locally(lambda val: val % P, noisy_val)
+            encoded = pychor.locally(lambda val: val % P, noisy_val)
 
             encoded.send(src=pychor_parties[index], dest=server)
             pychor.locally(lambda a: x_final.append(np.asarray(a)), encoded.only(server))
