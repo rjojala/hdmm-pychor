@@ -77,8 +77,12 @@ class HDMM:
         x_final = []
         GAMMA = 1000
         THETA = 0.01
-        delta = self.strategy.sensitivity()
-        #rho = (np.sqrt(np.log(1 / delta) + self.eps) - np.sqrt(np.log(1 / delta)))**2
+        delta = 10e-5
+        DELTA = self.strategy.sensitivity()
+        print(delta)
+        print(self.eps)
+        print(np.log(1/delta))
+        rho = (np.sqrt(np.log(1 / delta) + self.eps) - np.sqrt(np.log(1 / delta)))**2
         # p from line 62 from base_config.py in distributed hdmm
         P = 2**31 - 1
         server = pychor.Party("server")
@@ -89,9 +93,9 @@ class HDMM:
         # Can't tell if p or rho
         # Does N_z() represent variance or SD?
         # Isn't noise now dependent on data?
-        # std_dev = (GAMMA * delta) / np.sqrt(2*(1-THETA)*num_clients*P)
+        std_dev = (GAMMA * delta) / np.sqrt(2*(1-THETA)*num_clients*rho)
         # std_dev = GAMMA*delta**2/(num_clients/2)
-        std_dev = (GAMMA**2*delta**2)/(2*(1-THETA)*num_clients*P)
+        # std_dev = (GAMMA**2*delta**2)/(2*(1-THETA)*num_clients*rho)
         # std_dev = delta/self.eps
         for index, x_part in enumerate(x_parts):
             x_local = pychor_parties[index].constant(x_part)
